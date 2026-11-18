@@ -1,4 +1,4 @@
-﻿generator client {
+generator client {
   provider = "prisma-client-js"
 }
 
@@ -362,4 +362,3 @@ model AuditLog {
   @@index([userId])
   @@index([createdAt])
 }
-
