@@ -31,9 +31,14 @@ export async function POST(req: Request) {
     where: { login: { equals: login, mode: "insensitive" } },
   });
 
-  if (!user || !(await verifyPassword(user.passwordHash, password))) {
+  if (!user) {
+    return NextResponse.json({ error: "Пользователь не найден. Выполните npm run db:seed" }, { status: 401 });
+  }
+
+  const valid = await verifyPassword(user.passwordHash, password);
+  if (!valid) {
     await logFailedLogin(login, ip);
-    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    return NextResponse.json({ error: "Неверный пароль" }, { status: 401 });
   }
 
   await createSession(user.id);

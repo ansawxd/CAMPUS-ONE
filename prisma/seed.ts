@@ -18,8 +18,10 @@ async function main() {
   });
 
   // Студент A
-  const userA = await prisma.user.create({
-    data: {
+  const userA = await prisma.user.upsert({
+    where: { login: "studentA" },
+    update: { passwordHash: hash },
+    create: {
       login: "studentA",
       passwordHash: hash,
       role: Role.STUDENT,
@@ -31,8 +33,10 @@ async function main() {
   });
 
   // Студент B
-  const userB = await prisma.user.create({
-    data: {
+  const userB = await prisma.user.upsert({
+    where: { login: "studentB" },
+    update: { passwordHash: hash },
+    create: {
       login: "studentB",
       passwordHash: hash,
       role: Role.STUDENT,
@@ -44,8 +48,10 @@ async function main() {
   });
 
   // Сотрудник деканата
-  const dean = await prisma.user.create({
-    data: {
+  await prisma.user.upsert({
+    where: { login: "deanery" },
+    update: { passwordHash: hash },
+    create: {
       login: "deanery",
       passwordHash: hash,
       role: Role.DEANERY_STAFF,
@@ -54,8 +60,10 @@ async function main() {
   });
 
   // Преподаватель
-  const teacherUser = await prisma.user.create({
-    data: {
+  const teacherUser = await prisma.user.upsert({
+    where: { login: "teacher" },
+    update: { passwordHash: hash },
+    create: {
       login: "teacher",
       passwordHash: hash,
       role: Role.TEACHER,
@@ -70,8 +78,10 @@ async function main() {
   });
 
   // Администратор
-  await prisma.user.create({
-    data: {
+  await prisma.user.upsert({
+    where: { login: "admin" },
+    update: { passwordHash: hash },
+    create: {
       login: "admin",
       passwordHash: hash,
       role: Role.ADMIN,
