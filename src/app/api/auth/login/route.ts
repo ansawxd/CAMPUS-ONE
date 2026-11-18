@@ -27,9 +27,8 @@ export async function POST(req: Request) {
 
   const { login, password } = parsed.data;
 
-  // Простой поиск (SQLite не поддерживает mode: insensitive надёжно)
   const user = await prisma.user.findFirst({
-    where: { login },
+    where: { login: { equals: login, mode: "insensitive" } },
   });
 
   if (!user || !(await verifyPassword(user.passwordHash, password))) {

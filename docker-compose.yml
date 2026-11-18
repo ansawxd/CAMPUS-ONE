@@ -13,7 +13,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    # Порт наружу не открываем — база доступна только внутри сети Compose
+    ports:
+      - "5432:5432"
 
   app:
     build: .
