@@ -27,7 +27,8 @@ export default function LoginPage() {
         router.push("/");
         router.refresh();
       } else {
-        setError(t.invalidCredentials);
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || t.invalidCredentials);
       }
     } catch {
       setError(t.invalidCredentials);

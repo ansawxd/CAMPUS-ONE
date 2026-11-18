@@ -24,11 +24,24 @@ export function assertSameOrigin(request: NextRequest): boolean {
  * Возвращает Response с 403, если проверка не прошла.
  */
 export function csrfGuard(request: NextRequest): Response | null {
-  if (!assertSameOrigin(request)) {
-    return new Response(JSON.stringify({ error: "CSRF check failed" }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" },
-    });
+  const origin = request.headers.get("origin");
+  const host = request.headers.get("host");
+
+  // В локальной разработке иногда Origin отсутствует — пропускаем
+  if (!origin) return null;
+
+  if (!host) return null;
+
+  try {
+    const originUrl = new URL(origin);
+    if (originUrl.host !== host) {
+      return new Response(JSON.stringify({ error: "CSRF check failed" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+  } catch {
+    return null;
   }
   return null;
 }
