@@ -1,4 +1,4 @@
-generator client {
+﻿generator client {
   provider = "prisma-client-js"
 }
 
@@ -45,7 +45,7 @@ enum NewsCategory {
 }
 
 model User {
-  id            String   @id @default(uuid()) @db.Uuid
+  id            String   @id @default(uuid())
   login         String
   passwordHash  String
   role          Role
@@ -66,8 +66,8 @@ model User {
 }
 
 model Session {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @db.Uuid
+  id         String   @id @default(uuid())
+  userId     String  
   tokenHash  String   @unique
   expiresAt  DateTime
   revokedAt  DateTime?
@@ -80,9 +80,9 @@ model Session {
 }
 
 model Student {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @unique @db.Uuid
-  groupId    String   @db.Uuid
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  groupId    String  
   course     Int
   direction  String
   citizenship String?
@@ -101,9 +101,9 @@ model Student {
 }
 
 model Teacher {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @unique @db.Uuid
-  departmentId String @db.Uuid
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  departmentId String
   position   String
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -114,7 +114,7 @@ model Teacher {
 }
 
 model Faculty {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String   @id @default(uuid())
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -124,8 +124,8 @@ model Faculty {
 }
 
 model Department {
-  id        String   @id @default(uuid()) @db.Uuid
-  facultyId String   @db.Uuid
+  id        String   @id @default(uuid())
+  facultyId String  
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -135,8 +135,8 @@ model Department {
 }
 
 model StudyGroup {
-  id         String   @id @default(uuid()) @db.Uuid
-  facultyId  String   @db.Uuid
+  id         String   @id @default(uuid())
+  facultyId  String  
   name       String
   course     Int
   createdAt  DateTime @default(now())
@@ -151,7 +151,7 @@ model StudyGroup {
 }
 
 model Subject {
-  id          String   @id @default(uuid()) @db.Uuid
+  id          String   @id @default(uuid())
   name        String
   hours       Int
   assessment  AssessmentType
@@ -164,9 +164,9 @@ model Subject {
 }
 
 model GroupSubject {
-  id        String   @id @default(uuid()) @db.Uuid
-  groupId   String   @db.Uuid
-  subjectId String   @db.Uuid
+  id        String   @id @default(uuid())
+  groupId   String  
+  subjectId String  
   createdAt DateTime @default(now())
 
   group   StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -178,8 +178,8 @@ model GroupSubject {
 }
 
 model Room {
-  id         String   @id @default(uuid()) @db.Uuid
-  buildingId String   @db.Uuid
+  id         String   @id @default(uuid())
+  buildingId String  
   number     String
   capacity   Int?
   type       String?
@@ -193,7 +193,7 @@ model Room {
 }
 
 model CampusBuilding {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String   @id @default(uuid())
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -202,11 +202,11 @@ model CampusBuilding {
 }
 
 model Lesson {
-  id          String     @id @default(uuid()) @db.Uuid
-  groupId     String     @db.Uuid
-  subjectId   String     @db.Uuid
-  teacherId   String     @db.Uuid
-  roomId      String     @db.Uuid
+  id          String     @id @default(uuid())
+  groupId     String    
+  subjectId   String    
+  teacherId   String    
+  roomId      String    
   type        LessonType
   start       DateTime
   end         DateTime
@@ -228,8 +228,8 @@ model Lesson {
 }
 
 model ScheduleChange {
-  id        String   @id @default(uuid()) @db.Uuid
-  lessonId  String   @db.Uuid
+  id        String   @id @default(uuid())
+  lessonId  String  
   reason    String
   createdAt DateTime @default(now())
 
@@ -237,9 +237,9 @@ model ScheduleChange {
 }
 
 model Attendance {
-  id        String   @id @default(uuid()) @db.Uuid
-  studentId String   @db.Uuid
-  lessonId  String   @db.Uuid
+  id        String   @id @default(uuid())
+  studentId String  
+  lessonId  String  
   present   Boolean
   createdAt DateTime @default(now())
 
@@ -251,9 +251,9 @@ model Attendance {
 }
 
 model Grade {
-  id         String   @id @default(uuid()) @db.Uuid
-  studentId  String   @db.Uuid
-  subjectId  String   @db.Uuid
+  id         String   @id @default(uuid())
+  studentId  String  
+  subjectId  String  
   value      String
   comment    String?
   createdAt  DateTime @default(now())
@@ -267,8 +267,8 @@ model Grade {
 }
 
 model Request {
-  id          String        @id @default(uuid()) @db.Uuid
-  studentId   String        @db.Uuid
+  id          String        @id @default(uuid())
+  studentId   String       
   type        String
   description String
   status      RequestStatus @default(SUBMITTED)
@@ -283,8 +283,8 @@ model Request {
 }
 
 model RequestHistory {
-  id        String        @id @default(uuid()) @db.Uuid
-  requestId String        @db.Uuid
+  id        String        @id @default(uuid())
+  requestId String       
   status    RequestStatus
   comment   String?
   createdAt DateTime      @default(now())
@@ -293,8 +293,8 @@ model RequestHistory {
 }
 
 model NewsPost {
-  id        String       @id @default(uuid()) @db.Uuid
-  authorId  String       @db.Uuid
+  id        String       @id @default(uuid())
+  authorId  String      
   title     String
   body      String
   category  NewsCategory
@@ -311,9 +311,9 @@ model NewsPost {
 }
 
 model PostLike {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
-  postId    String   @db.Uuid
+  id        String   @id @default(uuid())
+  userId    String  
+  postId    String  
   createdAt DateTime @default(now())
 
   user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -323,8 +323,8 @@ model PostLike {
 }
 
 model Notification {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
+  id        String   @id @default(uuid())
+  userId    String  
   title     String
   body      String
   read      Boolean  @default(false)
@@ -336,10 +336,10 @@ model Notification {
 }
 
 model Note {
-  id        String   @id @default(uuid()) @db.Uuid
-  studentId String   @db.Uuid
-  subjectId String?  @db.Uuid
-  lessonId  String?  @db.Uuid
+  id        String   @id @default(uuid())
+  studentId String  
+  subjectId String? 
+  lessonId  String? 
   body      String
   pinned    Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -351,8 +351,8 @@ model Note {
 }
 
 model AuditLog {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
+  id        String   @id @default(uuid())
+  userId    String  
   action    String
   details   String?
   createdAt DateTime @default(now())
@@ -362,3 +362,4 @@ model AuditLog {
   @@index([userId])
   @@index([createdAt])
 }
+
