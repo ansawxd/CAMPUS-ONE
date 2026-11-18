@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n-context";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default function LoginPage() {
   const [login, setLogin] = useState("");
@@ -9,6 +11,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { t } = useI18n();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,10 +27,10 @@ export default function LoginPage() {
         router.push("/");
         router.refresh();
       } else {
-        setError("Неверный логин или пароль");
+        setError(t.invalidCredentials);
       }
     } catch {
-      setError("Ошибка сети");
+      setError(t.invalidCredentials);
     } finally {
       setLoading(false);
     }
@@ -35,14 +38,14 @@ export default function LoginPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6">
-      <div>
-        <h1 className="text-3xl font-semibold">Вход в CAMPUS ONE</h1>
-        <p className="text-sm text-neutral-500 mt-1">Демонстрационный проект</p>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-semibold">{t.loginTitle}</h1>
+        <LanguageSwitcher />
       </div>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <input
           type="text"
-          placeholder="Логин"
+          placeholder={t.login}
           value={login}
           onChange={(e) => setLogin(e.target.value)}
           className="rounded border px-3 py-2"
@@ -51,7 +54,7 @@ export default function LoginPage() {
         />
         <input
           type="password"
-          placeholder="Пароль"
+          placeholder={t.password}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="rounded border px-3 py-2"
@@ -64,12 +67,10 @@ export default function LoginPage() {
           disabled={loading}
           className="rounded bg-neutral-900 px-4 py-2 text-white disabled:opacity-50"
         >
-          {loading ? "Вход…" : "Войти"}
+          {loading ? t.signingIn : t.signIn}
         </button>
       </form>
-      <p className="text-xs text-neutral-400">
-        Демо: studentA / studentB / deanery
-      </p>
+      <p className="text-xs text-neutral-400">{t.demoHint}</p>
     </main>
   );
 }

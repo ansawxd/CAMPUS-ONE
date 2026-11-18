@@ -53,7 +53,33 @@ async function main() {
     },
   });
 
-  console.log("Seed: созданы studentA, studentB, deanery. Пароль для всех:", password);
+  // Преподаватель
+  const teacherUser = await prisma.user.create({
+    data: {
+      login: "teacher",
+      passwordHash: hash,
+      role: Role.TEACHER,
+      fullName: "Дмитрий Орлов",
+    },
+  });
+  const dept = await prisma.department.create({
+    data: { name: "Кафедра информатики", facultyId: faculty.id },
+  });
+  await prisma.teacher.create({
+    data: { userId: teacherUser.id, departmentId: dept.id, position: "Доцент" },
+  });
+
+  // Администратор
+  await prisma.user.create({
+    data: {
+      login: "admin",
+      passwordHash: hash,
+      role: Role.ADMIN,
+      fullName: "Администратор Системы",
+    },
+  });
+
+  console.log("Seed: studentA, studentB, teacher, deanery, admin. Пароль для всех:", password);
 }
 
 main()
