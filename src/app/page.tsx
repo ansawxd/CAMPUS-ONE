@@ -1,13 +1,67 @@
-import { appName, university } from "@/lib/constants";
+import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { appTimeZone } from "@/lib/constants";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 
-export default function Home() {
+function formatTime(d: Date) {
+  return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: appTimeZone });
+}
+
+export default async function Home() {
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/login");
+  }
+
+  const now = new Date();
+  let currentLesson = null;
+  let nextLesson = null;
+
+  if (user.student) {
+    const lessons = await prisma.lesson.findMany({
+      where: {
+        groupId: user.student.groupId,
+        isCancelled: false,
+      },
+      include: { subject: true, room: true },
+      orderBy: { start: "asc" },
+      take: 20,
+    });
+    currentLesson = lessons.find(l => l.start <= now && now < l.end) ?? null;
+    nextLesson = lessons.find(l => l.start > now) ?? null;
+  }
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center gap-4 px-6">
-      <p className="text-sm text-neutral-500">Концепт цифрового деканата будущего. Демонстрационный проект.</p>
-      <h1 className="text-4xl font-semibold tracking-tight">{appName}</h1>
-      <p className="text-lg text-neutral-700">
-        {university.name} ({university.shortName}). Каркас + схема Prisma (PROMPT 2) готовы. Дальнейшие модули (auth, главная, расписание, заявки) — следующие шаги.
-      </p>
-    </main>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-semibold">Привет, {user.fullName}</h1>
+        <p className="text-sm text-neutral-500 mt-1">
+          {now.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long", timeZone: appTimeZone })}
+        </p>
+      </div>
+      <section className="grid gap-4 sm:grid-cols-2">
+        <div className="border rounded-lg p-4">
+          <h2 className="font-medium text-sm text-neutral-500">Посещаемость</h2>
+          <p className="text-2xl mt-1">— / —</p>
+        </div>
+        <div className="border rounded-lg p-4">
+          <h2 className="font-medium text-sm text-neutral-500">Текущая пара</h2>
+          {currentLesson ? (
+            <p className="text-lg mt-1">{currentLesson.subject.name}</p>
+          ) : (
+            <p className="text-lg mt-1 text-neutral-400">Нет текущей пары</p>
+          )}
+          {nextLesson && (
+            <p className="text-sm text-neutral-400 mt-2">Следующая: {nextLesson.subject.name}</p>
+          )}
+        </div>
+      </section>
+      <div className="flex flex-wrap gap-2">
+        <Link href="/schedule" className="border rounded px-3 py-1.5 text-sm">Расписание</Link>
+        <Link href="/requests" className="border rounded px-3 py-1.5 text-sm">Справки</Link>
+        <Link href="/profile" className="border rounded px-3 py-1.5 text-sm">Профиль</Link>
+      </div>
+    </div>
   );
 }

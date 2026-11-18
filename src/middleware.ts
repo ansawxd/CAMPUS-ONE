@@ -6,6 +6,7 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const protectedPaths = [
+    "/",
     "/schedule",
     "/subjects",
     "/requests",
@@ -16,7 +17,10 @@ export function middleware(request: NextRequest) {
     "/campus-map",
   ];
 
-  const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
+  // Точное совпадение для корня, startsWith для остальных
+  const isProtected =
+    pathname === "/" ||
+    protectedPaths.some((p) => p !== "/" && pathname.startsWith(p));
 
   if (isProtected && !token) {
     const loginUrl = new URL("/login", request.url);
