@@ -1,19 +1,15 @@
+import { prisma } from "./prisma";
+
 /**
  * Проверка пересечения интервалов: startA < endB && startB < endA
- * Используется перед сохранением занятия.
  */
-export function intervalsOverlap(
-  startA: Date,
-  endA: Date,
-  startB: Date,
-  endB: Date
-): boolean {
+export function intervalsOverlap(startA: Date, endA: Date, startB: Date, endB: Date): boolean {
   return startA < endB && startB < endA;
 }
 
 /**
- * Пример серверной проверки конфликта для группы / преподавателя / аудитории.
- * Вызывать в транзакции непосредственно перед create/update Lesson.
+ * Есть ли конфликт у группы, преподавателя или аудитории в этот интервал.
+ * Вызывать перед созданием/изменением занятия.
  */
 export async function hasScheduleConflict(params: {
   groupId: string;
@@ -23,7 +19,15 @@ export async function hasScheduleConflict(params: {
   end: Date;
   excludeLessonId?: string;
 }) {
-  // В реальном коде — prisma.lesson.findFirst с условиями
-  // where: { OR: [{groupId}, {teacherId}, {roomId}], start/end overlap, id not exclude }
-  return false; // заглушка
+  const conflict = await prisma.lesson.findFirst({
+    where: {
+      isCancelled: false,
+      id: params.excludeLessonId ? { not: params.excludeLessonId } : undefined,
+      OR: [{ groupId: params.groupId }, { teacherId: params.teacherId }, { roomId: params.roomId }],
+      start: { lt: params.end },
+      end: { gt: params.start },
+    },
+    select: { id: true },
+  });
+  return conflict !== null;
 }

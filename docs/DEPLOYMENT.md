@@ -8,38 +8,40 @@
 
 ## Docker Compose (рекомендуется)
 
-PostgreSQL поднимается автоматически, данные сохраняются в томе `campus_pgdata`. Порт базы наружу не открыт.
+PostgreSQL поднимается автоматически, данные сохраняются в томе `campus_pgdata`.
+Порт базы открыт только на `127.0.0.1` (из сети недоступен).
 
 ```bash
 cd campus-one
 
-# Сборка и запуск
+# 1. База + приложение
 docker compose up -d --build
 
-# Проверка логов
+# 2. Миграции и seed — с хоста (в образе приложения нет Prisma CLI и tsx)
+npm install
+npx prisma migrate deploy
+npm run db:seed
+
+# Логи
 docker compose logs -f app
 
-# Seed (один раз)
-docker compose exec app npm run db:seed
-
-# Остановка (данные сохраняются)
+# Остановка (данные сохраняются) / полная очистка
 docker compose down
-
-# Полная очистка вместе с данными
 # docker compose down -v
 ```
 
 Приложение: http://localhost:3000
 
-Переменные можно переопределить через `.env` рядом с `docker-compose.yml`:
+Переменные можно переопределить через `.env` рядом с `docker-compose.yml`
+(обязательно задайте сильный пароль, если база будет не только на вашем ноутбуке):
 ```
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=strong-password
 POSTGRES_DB=campus_one
 ```
 
-Тестовые логины после seed: `studentA`, `studentB`, `deanery`.  
-Пароль выводится в терминал при первом запуске seed (по умолчанию `DemoPass1`).
+Демо-логины после seed: `studentA`, `studentB`, `teacher`, `teacher2`, `deanery`, `admin`, пароль `DemoPass1`.
+Сбросить демо-базу полностью: `npm run db:reset`.
 
 ## Production (Node.js, не static export)
 

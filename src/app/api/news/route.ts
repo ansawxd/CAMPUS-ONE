@@ -8,7 +8,17 @@ export async function GET() {
 
   const posts = await prisma.newsPost.findMany({
     where: { published: true },
-    include: { author: { select: { fullName: true } }, likes: true },
+    // Раньше отдавались все лайки с userId — лишние данные о других пользователях
+    select: {
+      id: true,
+      title: true,
+      body: true,
+      category: true,
+      isOfficial: true,
+      createdAt: true,
+      author: { select: { fullName: true } },
+      _count: { select: { likes: true } },
+    },
     orderBy: { createdAt: "desc" },
     take: 20,
   });

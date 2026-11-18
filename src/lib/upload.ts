@@ -17,14 +17,16 @@ export function validateUpload(
   kind: keyof typeof FILE_LIMITS
 ): { ok: true } | { ok: false; error: string } {
   const rule = FILE_LIMITS[kind];
-  if (!rule.mime.includes(file.type as any)) {
+  const allowedMime: readonly string[] = rule.mime;
+  if (!allowedMime.includes(file.type)) {
     return { ok: false, error: "Недопустимый тип файла" };
   }
   if (file.size > rule.maxBytes) {
     return { ok: false, error: "Файл слишком большой" };
   }
   const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
-  if (!rule.ext.includes(ext as any)) {
+  const allowedExt: readonly string[] = rule.ext;
+  if (!allowedExt.includes(ext)) {
     return { ok: false, error: "Недопустимое расширение" };
   }
   return { ok: true };

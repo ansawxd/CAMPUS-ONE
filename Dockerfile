@@ -1,6 +1,8 @@
 # Builder
 FROM node:20-alpine AS builder
 WORKDIR /app
+# openssl нужен Prisma, чтобы выбрать правильный движок под Alpine
+RUN apk add --no-cache openssl
 
 # Кэш зависимостей
 COPY package*.json ./

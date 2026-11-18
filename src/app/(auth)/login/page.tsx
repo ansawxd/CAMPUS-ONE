@@ -27,11 +27,12 @@ export default function LoginPage() {
         router.push("/");
         router.refresh();
       } else {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || t.invalidCredentials);
+        // Показываем настоящую причину от сервера (раньше любая ошибка выглядела как "неверный пароль")
+        const data = await res.json().catch(() => null);
+        setError(data?.error ?? `Ошибка сервера (${res.status})`);
       }
     } catch {
-      setError(t.invalidCredentials);
+      setError(t.networkError);
     } finally {
       setLoading(false);
     }
@@ -43,7 +44,7 @@ export default function LoginPage() {
         <h1 className="text-3xl font-semibold">{t.loginTitle}</h1>
         <LanguageSwitcher />
       </div>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} method="post" className="flex flex-col gap-4">
         <input
           type="text"
           placeholder={t.login}

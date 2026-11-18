@@ -3,56 +3,88 @@ import { prisma } from "./prisma";
 import { cookies } from "next/headers";
 import crypto from "crypto";
 
+const SESSION_COOKIE = "session";
+const SESSION_DAYS = 7;
+
+function hashToken(token: string) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
 // Хеширование пароля Argon2id
 export async function hashPassword(password: string): Promise<string> {
   return argon2.hash(password, { type: argon2.argon2id });
 }
 
 export async function verifyPassword(hash: string, password: string): Promise<boolean> {
-  return argon2.verify(hash, password);
+  try {
+    return await argon2.verify(hash, password);
+  } catch {
+    // Повреждённый или не-argon2 хеш в базе — считаем пароль неверным, а не роняем сервер
+    return false;
+  }
 }
 
-// Создание сессии: случайный токен, в БД только хеш
+// Создание сессии: случайный токен в cookie, в БД только его хеш
 export async function createSession(userId: string) {
+  const cookieStore = await cookies();
+
+  // Защита от фиксации сессии: старая сессия из этого браузера отзывается
+  const oldToken = cookieStore.get(SESSION_COOKIE)?.value;
+  if (oldToken) {
+    await prisma.session.updateMany({
+      where: { tokenHash: hashToken(oldToken), revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  // Уборка: удаляем протухшие сессии этого пользователя
+  await prisma.session.deleteMany({ where: { userId, expiresAt: { lt: new Date() } } });
+
   const token = crypto.randomBytes(32).toString("hex");
-  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 дней
+  const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
 
   await prisma.session.create({
-    data: { userId, tokenHash, expiresAt },
+    data: { userId, tokenHash: hashToken(token), expiresAt },
   });
 
-  const cookieStore = await cookies();
-  cookieStore.set("session", token, {
+  cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     expires: expiresAt,
     path: "/",
   });
-
-  return token;
 }
 
+// Текущий пользователь (без passwordHash) вместе с профилем студента/преподавателя
 export async function getCurrentUser() {
   const cookieStore = await cookies();
-  const token = cookieStore.get("session")?.value;
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
-  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
   const session = await prisma.session.findUnique({
-    where: { tokenHash },
-    include: { user: true },
+    where: { tokenHash: hashToken(token) },
+    include: { user: { include: { student: true, teacher: true } } },
   });
 
   if (!session || session.revokedAt || session.expiresAt < new Date()) return null;
-  return session.user;
+
+  // passwordHash никогда не уходит дальше этого файла
+  const { passwordHash: _hidden, ...user } = session.user;
+  return user;
 }
 
-export async function revokeSession(token: string) {
-  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-  await prisma.session.updateMany({
-    where: { tokenHash },
-    data: { revokedAt: new Date() },
-  });
+export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
+
+// Выход: отзываем сессию в БД и удаляем cookie
+export async function destroySession() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  if (token) {
+    await prisma.session.updateMany({
+      where: { tokenHash: hashToken(token), revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+  cookieStore.delete(SESSION_COOKIE);
 }

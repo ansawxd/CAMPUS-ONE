@@ -5,9 +5,7 @@ import { csrfGuard } from "@/lib/csrf";
 import { z } from "zod";
 
 const noteSchema = z.object({
-  body: z.string().min(1),
-  subjectId: z.string().uuid().optional(),
-  lessonId: z.string().uuid().optional(),
+  body: z.string().trim().min(1).max(2000),
   pinned: z.boolean().optional(),
 });
 
@@ -23,27 +21,24 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const csrfError = csrfGuard(req as any);
+  const csrfError = csrfGuard(req);
   if (csrfError) return csrfError;
 
   const user = await getCurrentUser();
-  if (!user || user.role !== "STUDENT") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!user || user.role !== "STUDENT" || !user.student) {
+    return NextResponse.json({ error: "Заметки доступны только студентам" }, { status: 403 });
   }
 
-  const body = await req.json();
+  const body = await req.json().catch(() => null);
   const parsed = noteSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: "Invalid" }, { status: 400 });
-
-  const student = await prisma.student.findUnique({ where: { userId: user.id } });
-  if (!student) return NextResponse.json({ error: "No student" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Заметка пустая или длиннее 2000 символов" }, { status: 400 });
+  }
 
   const note = await prisma.note.create({
     data: {
-      studentId: student.id,
+      studentId: user.student.id,
       body: parsed.data.body,
-      subjectId: parsed.data.subjectId,
-      lessonId: parsed.data.lessonId,
       pinned: parsed.data.pinned ?? false,
     },
   });

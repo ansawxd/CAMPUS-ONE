@@ -28,9 +28,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (pathname === "/login" && token) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
+  // Раньше тут был редирект /login -> / при наличии cookie.
+  // С протухшей/чужой cookie это давало бесконечную петлю / -> /login -> / ...
+  // Теперь настоящую проверку сессии делает layout кабинета.
 
   return NextResponse.next();
 }

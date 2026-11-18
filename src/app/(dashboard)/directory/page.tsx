@@ -7,9 +7,14 @@ export default function DirectoryPage() {
   const [data, setData] = useState<{ students: any[]; teachers: any[] }>({ students: [], teachers: [] });
 
   useEffect(() => {
-    fetch(`/api/directory?q=${encodeURIComponent(q)}`)
-      .then(r => r.json())
-      .then(setData);
+    // Небольшая задержка, чтобы не слать запрос на каждую букву
+    const timer = setTimeout(() => {
+      fetch(`/api/directory?q=${encodeURIComponent(q)}`)
+        .then((r) => (r.ok ? r.json() : { students: [], teachers: [] }))
+        .then(setData)
+        .catch(() => setData({ students: [], teachers: [] }));
+    }, 300);
+    return () => clearTimeout(timer);
   }, [q]);
 
   return (

@@ -1,47 +1,28 @@
-import { NextRequest } from "next/server";
-
 /**
- * Проверка CSRF через заголовок Origin.
- * Для мутирующих запросов (POST, PUT, PATCH, DELETE) Origin должен совпадать с хостом.
- * Не требует самодельной криптографии — соответствует ТЗ.
+ * Защита от CSRF через заголовок Origin.
+ * Для мутирующих запросов (POST, PATCH, DELETE) браузер всегда присылает Origin,
+ * и он должен совпадать с адресом нашего сайта.
+ *
+ * Раньше запрос БЕЗ Origin (или с кривым Origin) пропускался — это была дыра.
  */
-export function assertSameOrigin(request: NextRequest): boolean {
+export function csrfGuard(request: Request): Response | null {
   const origin = request.headers.get("origin");
-  const host = request.headers.get("host");
+  // За прокси (nginx, хостинг) настоящий хост лежит в x-forwarded-host
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
 
-  if (!origin || !host) return false;
-
-  try {
-    const originUrl = new URL(origin);
-    return originUrl.host === host;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Хелпер для Route Handlers.
- * Возвращает Response с 403, если проверка не прошла.
- */
-export function csrfGuard(request: NextRequest): Response | null {
-  const origin = request.headers.get("origin");
-  const host = request.headers.get("host");
-
-  // В локальной разработке иногда Origin отсутствует — пропускаем
-  if (!origin) return null;
-
-  if (!host) return null;
-
-  try {
-    const originUrl = new URL(origin);
-    if (originUrl.host !== host) {
-      return new Response(JSON.stringify({ error: "CSRF check failed" }), {
-        status: 403,
-        headers: { "Content-Type": "application/json" },
-      });
+  let ok = false;
+  if (origin && host) {
+    try {
+      ok = new URL(origin).host === host;
+    } catch {
+      ok = false;
     }
-  } catch {
-    return null;
   }
-  return null;
+
+  if (ok) return null;
+
+  return new Response(JSON.stringify({ error: "Запрос отклонён (CSRF)" }), {
+    status: 403,
+    headers: { "Content-Type": "application/json" },
+  });
 }

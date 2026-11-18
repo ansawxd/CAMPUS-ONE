@@ -1,60 +1,85 @@
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { appTimeZone } from "@/lib/constants";
-import Link from "next/link";
-
-function formatTime(d: Date) {
-  return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", timeZone: appTimeZone });
-}
+import { formatDay, formatTime, moscowDayStart } from "@/lib/time";
+import { lessonTypeLabel } from "@/lib/labels";
 
 export default async function SchedulePage() {
   const user = await getCurrentUser();
-  if (!user) return <p>Необходимо войти</p>;
+  if (!user) redirect("/login");
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const now = new Date();
+  const from = moscowDayStart(now);
+  const to = moscowDayStart(now, 7);
 
-  let lessons: any[] = [];
-  if (user.student) {
-    lessons = await prisma.lesson.findMany({
-      where: {
-        groupId: user.student.groupId,
-        start: { gte: today, lt: tomorrow },
-      },
-      include: { subject: true, room: { include: { building: true } }, teacher: { include: { user: true } } },
-      orderBy: { start: "asc" },
-    });
+  // Студент видит расписание своей группы, преподаватель — свои пары
+  let where = {};
+  if (user.student) where = { groupId: user.student.groupId };
+  else if (user.teacher) where = { teacherId: user.teacher.id };
+  else {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold">Расписание</h1>
+        <p className="text-neutral-500">Расписание доступно студентам и преподавателям.</p>
+      </div>
+    );
+  }
+
+  const lessons = await prisma.lesson.findMany({
+    where: { ...where, start: { gte: from, lt: to } },
+    include: {
+      subject: true,
+      group: true,
+      room: { include: { building: true } },
+      teacher: { include: { user: { select: { fullName: true } } } },
+    },
+    orderBy: { start: "asc" },
+  });
+
+  // Группируем по дням
+  const days: { title: string; items: typeof lessons }[] = [];
+  for (const l of lessons) {
+    const title = formatDay(l.start);
+    const last = days[days.length - 1];
+    if (last && last.title === title) last.items.push(l);
+    else days.push({ title, items: [l] });
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Расписание на сегодня</h1>
-        <Link href="/" className="text-sm underline">На главную</Link>
-      </div>
+      <h1 className="text-2xl font-semibold">Расписание на неделю</h1>
 
-      {lessons.length === 0 ? (
-        <p className="text-neutral-500">На сегодня занятий нет</p>
-      ) : (
-        <ul className="space-y-3">
-          {lessons.map((l) => (
-            <li key={l.id} className={`border rounded-lg p-4 ${l.isCancelled ? "opacity-50 line-through" : ""}`}>
-              <div className="flex justify-between">
-                <span className="font-medium">{l.subject.name}</span>
-                <span className="text-sm text-neutral-500">
-                  {formatTime(l.start)}–{formatTime(l.end)}
-                </span>
-              </div>
-              <p className="text-sm text-neutral-600 mt-1">
-                {l.type} · {l.teacher.user.fullName} · {l.room.building.name}, ауд. {l.room.number}
-              </p>
-              {l.isCancelled && <p className="text-xs text-red-500 mt-1">Отменено</p>}
-            </li>
-          ))}
-        </ul>
-      )}
+      {days.length === 0 && <p className="text-neutral-500">На ближайшую неделю занятий нет</p>}
+
+      {days.map((day) => (
+        <section key={day.title}>
+          <h2 className="font-medium mb-2 capitalize">{day.title}</h2>
+          <ul className="space-y-2">
+            {day.items.map((l) => {
+              const isNow = !l.isCancelled && l.start <= now && now < l.end;
+              return (
+                <li
+                  key={l.id}
+                  className={`border rounded-lg p-3 ${l.isCancelled ? "opacity-50" : ""} ${isNow ? "border-green-600" : ""}`}
+                >
+                  <div className="flex justify-between gap-4">
+                    <span className={`font-medium ${l.isCancelled ? "line-through" : ""}`}>{l.subject.name}</span>
+                    <span className="text-sm text-neutral-500 whitespace-nowrap">
+                      {formatTime(l.start)}–{formatTime(l.end)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-1">
+                    {lessonTypeLabel[l.type]} · {user.student ? l.teacher.user.fullName : l.group.name} ·{" "}
+                    {l.room.building.name}, ауд. {l.room.number}
+                  </p>
+                  {l.isCancelled && <p className="text-xs text-red-500 mt-1">Отменено</p>}
+                  {isNow && <p className="text-xs text-green-700 mt-1">Идёт сейчас</p>}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
     </div>
   );
 }

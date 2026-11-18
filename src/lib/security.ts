@@ -1,35 +1,70 @@
 import { prisma } from "./prisma";
 
 /**
- * Логирование подозрительных входов (неудачные попытки).
+ * Запись подозрительного входа в AuditLog.
+ * userId = null, если такого логина нет (раньше тут был фиктивный id,
+ * запись падала на внешнем ключе и лог молча терялся).
  */
-export async function logFailedLogin(login: string, ip?: string) {
+export async function logFailedLogin(login: string, ip: string, userId: string | null) {
   try {
     await prisma.auditLog.create({
       data: {
-        userId: "00000000-0000-0000-0000-000000000000", // системный
+        userId,
         action: "FAILED_LOGIN",
-        details: JSON.stringify({ login: login.slice(0, 50), ip: ip ?? "unknown", at: new Date().toISOString() }),
+        details: JSON.stringify({ login: login.slice(0, 50), ip }),
       },
     });
-  } catch {
-    // не блокируем вход из-за ошибки лога
+  } catch (e) {
+    console.error("Не удалось записать FAILED_LOGIN в AuditLog", e);
   }
 }
 
 /**
- * Простой in-memory rate limit для входа (для демо; в проде — Redis).
+ * Простой in-memory лимит неудачных попыток (для демо; в проде — Redis).
+ * Считаем только НЕУДАЧНЫЕ попытки, после успешного входа счётчик сбрасывается.
  */
-const attempts = new Map<string, { count: number; reset: number }>();
+const failures = new Map<string, { count: number; reset: number }>();
 
-export function checkRateLimit(key: string, max = 5, windowMs = 15 * 60 * 1000): boolean {
-  const now = Date.now();
-  const rec = attempts.get(key);
-  if (!rec || now > rec.reset) {
-    attempts.set(key, { count: 1, reset: now + windowMs });
-    return true;
+const MAX_FAILURES = 5;
+const WINDOW_MS = 15 * 60 * 1000;
+
+export function isRateLimited(key: string): boolean {
+  const rec = failures.get(key);
+  if (!rec) return false;
+  if (Date.now() > rec.reset) {
+    failures.delete(key);
+    return false;
   }
-  if (rec.count >= max) return false;
-  rec.count++;
-  return true;
+  return rec.count >= MAX_FAILURES;
+}
+
+export function registerFailure(key: string) {
+  const now = Date.now();
+
+  // Защита памяти: при перебое с тысяч адресов чистим просроченные записи
+  if (failures.size > 10000) {
+    for (const [k, rec] of failures) {
+      if (now > rec.reset) failures.delete(k);
+    }
+  }
+
+  const rec = failures.get(key);
+  if (!rec || now > rec.reset) {
+    failures.set(key, { count: 1, reset: now + WINDOW_MS });
+  } else {
+    rec.count++;
+  }
+}
+
+export function clearFailures(key: string) {
+  failures.delete(key);
+}
+
+/** IP клиента. x-forwarded-for подделывается, поэтому лимит ставим ещё и по логину. */
+export function getClientIp(req: Request): string {
+  return (
+    req.headers.get("x-real-ip") ??
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    "unknown"
+  );
 }

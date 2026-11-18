@@ -12,11 +12,3 @@ export async function requireRole(roles: Role[]) {
   if (!roles.includes(user.role)) throw new Error("Forbidden");
   return user;
 }
-
-// Пример: проверка владения заявкой
-export async function canAccessRequest(userId: string, requestStudentId: string) {
-  const user = await getCurrentUser();
-  if (!user) return false;
-  if (user.role === "DEANERY_STAFF" || user.role === "ADMIN") return true;
-  return user.id === userId && user.student?.id === requestStudentId; // упрощённо
-}

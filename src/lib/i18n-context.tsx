@@ -6,7 +6,7 @@ import { translations, Lang } from "./i18n";
 type I18nContextType = {
   lang: Lang;
   setLang: (l: Lang) => void;
-  t: (typeof translations)["ru"];
+  t: (typeof translations)[Lang];
 };
 
 const I18nContext = createContext<I18nContextType | null>(null);

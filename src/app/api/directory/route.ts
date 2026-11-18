@@ -7,7 +7,7 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const q = searchParams.get("q") ?? "";
+  const q = (searchParams.get("q") ?? "").trim().slice(0, 100);
 
   // Студенты видят только фото, ФИО, курс, группу
   const students = await prisma.student.findMany({
