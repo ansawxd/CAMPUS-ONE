@@ -1,0 +1,366 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  DEANERY_STAFF
+  AUTHOR
+  MODERATOR
+  ADMIN
+}
+
+enum RequestStatus {
+  SUBMITTED
+  IN_PROGRESS
+  READY
+  REJECTED
+}
+
+enum AssessmentType {
+  CREDIT
+  DIFFERENTIATED_CREDIT
+  EXAM
+  COURSE_PROJECT
+}
+
+enum LessonType {
+  LECTURE
+  PRACTICE
+  LABORATORY
+}
+
+enum NewsCategory {
+  OFFICIAL
+  IMPORTANT
+  SPORT
+  STUDENT_LIFE
+  EVENT
+}
+
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  login         String
+  passwordHash  String
+  role          Role
+  fullName      String
+  photoUrl      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions      Session[]
+  student       Student?
+  teacher       Teacher?
+  newsPosts     NewsPost[]
+  postLikes     PostLike[]
+  notifications Notification[]
+  notes         Note[]
+  requests      Request[]
+  auditLogs     AuditLog[]
+
+  @@index([login])
+}
+
+model Session {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Student {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @unique @db.Uuid
+  groupId    String   @db.Uuid
+  course     Int
+  direction  String
+  citizenship String?
+  phone      String?
+  email      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group StudyGroup @relation(fields: [groupId], references: [id])
+
+  grades      Grade[]
+  attendances Attendance[]
+  requests    Request[]
+  notes       Note[]
+}
+
+model Teacher {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @unique @db.Uuid
+  departmentId String @db.Uuid
+  position   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id])
+  lessons    Lesson[]
+}
+
+model Faculty {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  departments Department[]
+  groups      StudyGroup[]
+}
+
+model Department {
+  id        String   @id @default(uuid()) @db.Uuid
+  facultyId String   @db.Uuid
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  faculty  Faculty  @relation(fields: [facultyId], references: [id])
+  teachers Teacher[]
+}
+
+model StudyGroup {
+  id         String   @id @default(uuid()) @db.Uuid
+  facultyId  String   @db.Uuid
+  name       String
+  course     Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  faculty Faculty @relation(fields: [facultyId], references: [id])
+  students Student[]
+  subjects GroupSubject[]
+  lessons  Lesson[]
+
+  @@index([facultyId])
+}
+
+model Subject {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  hours       Int
+  assessment  AssessmentType
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  groups GroupSubject[]
+  lessons Lesson[]
+  grades  Grade[]
+}
+
+model GroupSubject {
+  id        String   @id @default(uuid()) @db.Uuid
+  groupId   String   @db.Uuid
+  subjectId String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  group   StudyGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  subject Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, subjectId])
+  @@index([groupId])
+  @@index([subjectId])
+}
+
+model Room {
+  id         String   @id @default(uuid()) @db.Uuid
+  buildingId String   @db.Uuid
+  number     String
+  capacity   Int?
+  type       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  building CampusBuilding @relation(fields: [buildingId], references: [id])
+  lessons  Lesson[]
+
+  @@index([buildingId])
+}
+
+model CampusBuilding {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rooms Room[]
+}
+
+model Lesson {
+  id          String     @id @default(uuid()) @db.Uuid
+  groupId     String     @db.Uuid
+  subjectId   String     @db.Uuid
+  teacherId   String     @db.Uuid
+  roomId      String     @db.Uuid
+  type        LessonType
+  start       DateTime
+  end         DateTime
+  isCancelled Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  group   StudyGroup @relation(fields: [groupId], references: [id])
+  subject Subject    @relation(fields: [subjectId], references: [id])
+  teacher Teacher    @relation(fields: [teacherId], references: [id])
+  room    Room       @relation(fields: [roomId], references: [id])
+
+  attendances Attendance[]
+  changes     ScheduleChange[]
+
+  @@index([groupId, start])
+  @@index([teacherId, start])
+  @@index([roomId, start])
+}
+
+model ScheduleChange {
+  id        String   @id @default(uuid()) @db.Uuid
+  lessonId  String   @db.Uuid
+  reason    String
+  createdAt DateTime @default(now())
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model Attendance {
+  id        String   @id @default(uuid()) @db.Uuid
+  studentId String   @db.Uuid
+  lessonId  String   @db.Uuid
+  present   Boolean
+  createdAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lesson  Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, lessonId])
+  @@index([studentId])
+}
+
+model Grade {
+  id         String   @id @default(uuid()) @db.Uuid
+  studentId  String   @db.Uuid
+  subjectId  String   @db.Uuid
+  value      String
+  comment    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id])
+
+  @@index([studentId])
+  @@index([subjectId])
+}
+
+model Request {
+  id          String        @id @default(uuid()) @db.Uuid
+  studentId   String        @db.Uuid
+  type        String
+  description String
+  status      RequestStatus @default(SUBMITTED)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  student Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  history RequestHistory[]
+
+  @@index([studentId])
+  @@index([status])
+}
+
+model RequestHistory {
+  id        String        @id @default(uuid()) @db.Uuid
+  requestId String        @db.Uuid
+  status    RequestStatus
+  comment   String?
+  createdAt DateTime      @default(now())
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+model NewsPost {
+  id        String       @id @default(uuid()) @db.Uuid
+  authorId  String       @db.Uuid
+  title     String
+  body      String
+  category  NewsCategory
+  isOfficial Boolean     @default(false)
+  published Boolean      @default(false)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  author User      @relation(fields: [authorId], references: [id])
+  likes  PostLike[]
+
+  @@index([published, createdAt])
+  @@index([category])
+}
+
+model PostLike {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  postId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post NewsPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+}
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  title     String
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}
+
+model Note {
+  id        String   @id @default(uuid()) @db.Uuid
+  studentId String   @db.Uuid
+  subjectId String?  @db.Uuid
+  lessonId  String?  @db.Uuid
+  body      String
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+}
