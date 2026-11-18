@@ -27,13 +27,19 @@ async function main() {
     ok("Подключение есть: " + rows[0].db + " · " + String(rows[0].v).split(",")[0]);
   } catch (e) {
     const code = e.errorCode ?? e.code ?? "";
-    if (code === "P1001") fail("PostgreSQL не отвечает (localhost:5433)", "docker compose up -d db");
-    else if (code === "P1000")
+    const msg = String(e.message ?? "");
+    // У ошибки из $queryRaw кода может не быть — проверяем ещё и текст
+    if (code === "P1001" || msg.includes("Can't reach database server"))
+      fail(
+        "PostgreSQL не отвечает на localhost:5433 — база в Docker не запущена",
+        "запустите Docker Desktop, затем: docker compose up -d db  и проверьте: docker compose ps (статус должен быть healthy)"
+      );
+    else if (code === "P1000" || msg.includes("Authentication failed"))
       fail(
         "Неверный логин/пароль PostgreSQL",
         "проверьте, что в .env порт 5433 (база из Docker), а не 5432 (PostgreSQL из Windows)"
       );
-    else if (code === "P1003") fail("Базы campus_one не существует", "npm run db:reset");
+    else if (code === "P1003" || msg.includes("does not exist")) fail("Базы campus_one не существует", "npm run db:reset");
     else fail("Не удалось подключиться: " + (e.message ?? e), "проверьте DATABASE_URL в .env");
     return;
   }

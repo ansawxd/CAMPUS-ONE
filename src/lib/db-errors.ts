@@ -7,7 +7,11 @@ import { Prisma } from "@prisma/client";
 export function explainDbError(e: unknown): string {
   // Ошибки подключения (база не запущена, неверный пароль, нет базы)
   if (e instanceof Prisma.PrismaClientInitializationError) {
-    switch (e.errorCode) {
+    // Иногда errorCode пустой — тогда узнаём ошибку по тексту
+    let code = e.errorCode;
+    if (!code && e.message.includes("Can't reach database server")) code = "P1001";
+    if (!code && e.message.includes("Authentication failed")) code = "P1000";
+    switch (code) {
       case "P1001":
         return "PostgreSQL не отвечает по адресу из DATABASE_URL (localhost:5433). Запустите Docker Desktop и выполните: docker compose up -d db";
       case "P1000":
@@ -15,7 +19,8 @@ export function explainDbError(e: unknown): string {
       case "P1003":
         return "Базы campus_one нет на сервере PostgreSQL. Выполните: npm run db:reset";
       default:
-        return `Prisma не может подключиться к базе (${e.errorCode ?? "без кода"}). Проверьте DATABASE_URL в .env.`;
+        // Кода нет — показываем сам текст ошибки Prisma, он обычно всё объясняет
+        return `Prisma не может подключиться к базе: ${shortMessage(e.message)}`;
     }
   }
 
@@ -32,5 +37,16 @@ export function explainDbError(e: unknown): string {
     return "Prisma-клиент не совпадает со схемой. Выполните: npx prisma generate и перезапустите npm run dev";
   }
 
+  if (e instanceof Error) return "Ошибка сервера: " + shortMessage(e.message);
   return "Неизвестная ошибка сервера. Подробности — в терминале, где запущен npm run dev.";
+}
+
+// Убираем служебные строки Prisma ("Invalid `prisma.user.findFirst()` invocation") и обрезаем длину
+function shortMessage(message: string): string {
+  const lines = message
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line !== "" && !line.startsWith("Invalid `"));
+  const text = lines.join(" ").slice(0, 300);
+  return text || "без описания (см. терминал с npm run dev)";
 }
